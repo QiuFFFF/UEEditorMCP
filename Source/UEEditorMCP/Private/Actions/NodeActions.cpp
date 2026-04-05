@@ -5548,11 +5548,15 @@ TSharedPtr<FJsonObject> FSearchCatalogAction::ExecuteInternal(const TSharedPtr<F
 
 			FString Category = UiSpec.Category.ToString();
 			FString Keywords = UiSpec.Keywords.ToString();
+			FString Tooltip = UiSpec.Tooltip.ToString();
+			FString NodeClassName = Spawner->NodeClass ? Spawner->NodeClass->GetName() : TEXT("");
 
-			// Keyword match (case insensitive)
+			// Keyword match (case insensitive) — searches MenuName, Category, Keywords, Tooltip, and NodeClass name
 			bool bMatch = MenuName.ToLower().Contains(KeywordLower)
 				|| Category.ToLower().Contains(KeywordLower)
-				|| Keywords.ToLower().Contains(KeywordLower);
+				|| Keywords.ToLower().Contains(KeywordLower)
+				|| Tooltip.ToLower().Contains(KeywordLower)
+				|| NodeClassName.ToLower().Contains(KeywordLower);
 
 			if (!bMatch)
 				continue;
@@ -5623,18 +5627,47 @@ TSharedPtr<FJsonObject> FAddGenericNodeAction::ExecuteInternal(const TSharedPtr<
 	if (!NewNode)
 		return CreateErrorResponse(TEXT("Failed to spawn node. The spawner may not be compatible with this graph type."));
 
-	// Set pin defaults if provided
+	// Set pin defaults if provided — use Schema API for proper notifications
 	const TSharedPtr<FJsonObject>* PinDefaults = nullptr;
 	if (Params->TryGetObjectField(TEXT("pin_defaults"), PinDefaults) && PinDefaults && (*PinDefaults).IsValid())
 	{
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		for (const auto& PinPair : (*PinDefaults)->Values)
 		{
 			UEdGraphPin* Pin = FMCPCommonUtils::FindPin(NewNode, PinPair.Key, EGPD_Input);
-			if (Pin)
+			if (!Pin) continue;
+
+			FString Value = PinPair.Value->AsString();
+			const FName& PinCategory = Pin->PinType.PinCategory;
+
+			// Handle object/class pins via TrySetDefaultObject
+			if (PinCategory == UEdGraphSchema_K2::PC_Object ||
+				PinCategory == UEdGraphSchema_K2::PC_Class ||
+				PinCategory == UEdGraphSchema_K2::PC_SoftObject ||
+				PinCategory == UEdGraphSchema_K2::PC_SoftClass)
 			{
-				Pin->DefaultValue = PinPair.Value->AsString();
+				if (!Value.IsEmpty())
+				{
+					UObject* Obj = StaticLoadObject(UObject::StaticClass(), nullptr, *Value);
+					if (Obj)
+					{
+						K2Schema->TrySetDefaultObject(*Pin, Obj);
+					}
+					else
+					{
+						Pin->DefaultValue = Value;
+					}
+				}
+			}
+			else
+			{
+				// Use schema to set default — triggers proper pin notifications
+				K2Schema->TrySetDefaultValue(*Pin, Value);
 			}
 		}
+		// Some nodes need reconstruction after pin defaults change
+		NewNode->ReconstructNode();
+		TargetGraph->NotifyGraphChanged();
 	}
 
 	MarkBlueprintModified(Blueprint, Context);

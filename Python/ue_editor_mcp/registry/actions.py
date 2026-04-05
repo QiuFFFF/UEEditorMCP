@@ -2034,11 +2034,14 @@ _GRAPH_ACTIONS = [
                         "properties": {
                             "op": {"type": "string", "enum": ["add_node", "remove_node", "set_node_property", "connect", "disconnect", "add_variable", "set_variable_default", "set_pin_default"]},
                             "id": {"type": "string", "description": "(add_node) Temp ID for referencing within this patch"},
-                            "node_type": {"type": "string", "description": "(add_node) Event, CustomEvent, FunctionCall, Branch, VariableGet, VariableSet, Cast, Self, Reroute, MacroInstance"},
+                            "node_type": {"type": "string", "description": "(add_node) Event, CustomEvent, FunctionCall, Branch, VariableGet, VariableSet, Cast, Self, Reroute, MacroInstance, CreateDelegate, Delay, CreateWidget, InputAction, FormatText, SpawnActorFromClass"},
                             "event_name": {"type": "string", "description": "(add_node/Event) Event name e.g. BeginPlay"},
                             "function_name": {"type": "string", "description": "(add_node/FunctionCall) Function name"},
                             "target_class": {"type": "string", "description": "(add_node/FunctionCall) Owning class (self, GameplayStatics, Math, etc.)"},
                             "variable_name": {"type": "string", "description": "(add_node/VariableGet|Set) Variable name"},
+                            "action_name": {"type": "string", "description": "(add_node/InputAction) Input action name"},
+                            "class_name": {"type": "string", "description": "(add_node/CreateWidget|SpawnActorFromClass) Class path e.g. /Game/UI/WBP_HUD.WBP_HUD_C"},
+                            "duration": {"type": "number", "description": "(add_node/Delay) Delay duration in seconds"},
                             "defaults": {"type": "object", "description": "(add_node/FunctionCall) Pin default values {pin_name: value}"},
                             "node": {"type": "string", "description": "(various ops) Node reference: temp ID, GUID, or $last_node"},
                             "from": {"type": "object", "description": "(connect) {node, pin}"},
@@ -2727,7 +2730,8 @@ _WIDGET_ACTIONS = [
                 "position": {"type": "array", "items": {"type": "number"}, "description": "[X, Y]"},
                 "size": {"type": "array", "items": {"type": "number"}, "description": "[Width, Height]"},
                 "font_size": {"type": "integer", "description": "Font size"},
-                "color": {"type": "array", "items": {"type": "number"}, "description": "[R, G, B, A]"}
+                "color": {"type": "array", "items": {"type": "number"}, "description": "[R, G, B, A]"},
+                "parent": {"type": "string", "description": "Optional parent container name. If provided, widget is added as child of this container instead of root canvas."}
             },
             "required": ["widget_name", "component_type", "component_name"]
         },
@@ -2821,7 +2825,12 @@ _WIDGET_ACTIONS = [
                 "is_enabled": {"type": "boolean", "description": "Whether widget is enabled"},
                 "h_align": {"type": "string", "description": "Horizontal alignment: Fill, Left, Center, Right"},
                 "v_align": {"type": "string", "description": "Vertical alignment: Fill, Top, Center, Bottom"},
-                "padding": {"type": "array", "items": {"type": "number"}, "description": "[Left, Top, Right, Bottom]"}
+                "padding": {"type": "array", "items": {"type": "number"}, "description": "[Left, Top, Right, Bottom]"},
+                "anchors": {"type": "array", "items": {"type": "number"}, "description": "[MinX, MinY, MaxX, MaxY] CanvasPanel anchors (0-1). Presets: [0,0,0,0]=TopLeft, [0.5,0.5,0.5,0.5]=Center, [0,0,1,1]=Stretch"},
+                "alignment": {"type": "array", "items": {"type": "number"}, "description": "[X, Y] alignment pivot (0-1). E.g. [0.5, 0.5] for center"},
+                "auto_size": {"type": "boolean", "description": "Enable auto-size for CanvasPanel slot (overrides explicit size)"},
+                "z_order": {"type": "integer", "description": "Z-order in CanvasPanel (higher = on top)"},
+                "size_rule": {"type": "string", "enum": ["Auto", "Fill"], "description": "Size rule for VerticalBox/HorizontalBox slots"}
             },
             "required": ["widget_name", "target"]
         },
